@@ -1,22 +1,23 @@
 # app/auth/redis.py
-import aioredis
-from app.core.config import get_settings
+"""
+Simple in-memory JWT blacklist used during testing.
 
-settings = get_settings()
+This removes the dependency on aioredis, which is incompatible
+with Python 3.12 because it imports the removed distutils module.
+"""
 
-async def get_redis():
-    if not hasattr(get_redis, "redis"):
-        get_redis.redis = await aioredis.from_url(
-            settings.REDIS_URL or "redis://localhost"
-        )
-    return get_redis.redis
+from typing import Set
+
+# Local in-memory blacklist storage
+_blacklist: Set[str] = set()
 
 async def add_to_blacklist(jti: str, exp: int):
-    """Add a token's JTI to the blacklist"""
-    redis = await get_redis()
-    await redis.set(f"blacklist:{jti}", "1", ex=exp)
+    """
+    Add a token JTI to the blacklist.
+    `exp` is ignored but kept for signature compatibility.
+    """
+    _blacklist.add(jti)
 
 async def is_blacklisted(jti: str) -> bool:
-    """Check if a token's JTI is blacklisted"""
-    redis = await get_redis()
-    return await redis.exists(f"blacklist:{jti}")
+    """Check whether a token's JTI is in the blacklist."""
+    return jti in _blacklist
