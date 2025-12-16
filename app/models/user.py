@@ -107,19 +107,19 @@ class User(Base):
     def verify_password(self, plain_password: str) -> bool:
         from app.auth.jwt import verify_password
         return verify_password(plain_password, self.password)
-    
-    def set_password(self, new_password: str) -> None:
-        """
-        Hash and store a new password.
-        """
-        self.password = self.hash_password(new_password)  # IMPORTANT: write to `password`
-        self.updated_at = utcnow()
-
 
     @classmethod
     def hash_password(cls, password: str) -> str:
         from app.auth.jwt import get_password_hash
         return get_password_hash(password)
+    
+    def set_password(self, new_password: str) -> None:
+        """
+        Hash and store a new password (must match registration/login hashing).
+        """
+        self.password = self.hash_password(new_password)
+        self.updated_at = utcnow()
+
 
     @classmethod
     def register(cls, db, user_data: dict):
