@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Profile Settings</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-slate-950 text-white min-h-screen">
+  <div class="max-w-2xl mx-auto p-6">
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-2xl font-bold">Profile / Settings</h1>
+      <a href="/dashboard" class="text-sm text-slate-300 hover:text-white underline">Back to Dashboard</a>
+    </div>
+
+    
+    <div id="successAlert" class="hidden mb-4 rounded-lg bg-emerald-600/20 border border-emerald-600 px-4 py-3 text-emerald-200"></div>
+    <div id="errorAlert" class="hidden mb-4 rounded-lg bg-red-600/20 border border-red-600 px-4 py-3 text-red-200"></div>
+
+    <!-- Password Change Card -->
+    <div class="rounded-xl border border-slate-800 bg-slate-900/40 p-6">
+      <h2 class="text-xl font-semibold mb-4">Change Password</h2>
+
+      <form id="passwordForm" class="space-y-4">
+        <div>
+          <label class="block text-sm text-slate-300 mb-1">Current Password</label>
+          <input id="current_password" type="password"
+                 class="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2"
+                 placeholder="Enter current password" required />
+        </div>
+
+        <div>
+          <label class="block text-sm text-slate-300 mb-1">New Password</label>
+          <input id="new_password" type="password"
+                 class="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2"
+                 placeholder="Enter new password (8+ chars)" required />
+        </div>
+
+        <div>
+          <label class="block text-sm text-slate-300 mb-1">Confirm New Password</label>
+          <input id="confirm_new_password" type="password"
+                 class="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2"
+                 placeholder="Confirm new password" required />
+        </div>
+
+        <button id="submitBtn"
+                class="w-full rounded-lg bg-indigo-600 hover:bg-indigo-500 px-4 py-2 font-semibold">
+          Update Password
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const successAlert = document.getElementById("successAlert");
+    const errorAlert = document.getElementById("errorAlert");
+    const form = document.getElementById("passwordForm");
+
+    function showSuccess(msg) {
+      errorAlert.classList.add("hidden");
+      successAlert.textContent = msg;
+      successAlert.classList.remove("hidden");
+    }
+
+    function showError(msg) {
+      successAlert.classList.add("hidden");
+      errorAlert.textContent = msg;
+      errorAlert.classList.remove("hidden");
+    }
+
+    function getToken() {
+      return localStorage.getItem("access_token") || localStorage.getItem("token");
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      // Clear alerts
+      successAlert.classList.add("hidden");
+      errorAlert.classList.add("hidden");
+
+      const token = getToken();
+      if (!token) {
+        showError("No token found. Please log in again.");
+        setTimeout(() => window.location.href = "/login", 1200);
+        return;
+      }
+
+      const current_password = document.getElementById("current_password").value;
+      const new_password = document.getElementById("new_password").value;
+      const confirm_new_password = document.getElementById("confirm_new_password").value;
+
+      // Client-side validation (matches lecture style)
+      if (new_password.length < 8) {
+        showError("New password must be at least 8 characters.");
+        return;
+      }
+      if (new_password !== confirm_new_password) {
+        showError("New password and confirmation do not match.");
+        return;
+      }
+      if (current_password === new_password) {
+        showError("New password must be different from current password.");
+        return;
+      }
+
+      try {
+        const res = await fetch("/users/me/password", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({ current_password, new_password, confirm_new_password })
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          showError(data.detail || "Password update failed.");
+          return;
+        }
+
+        showSuccess("Password updated successfully. Please log in again.");
+        // Force re-login (good security + good demo)
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("token");
+        setTimeout(() => window.location.href = "/login", 1500);
+
+      } catch (err) {
+        showError("Network error. Please try again.");
+      }
+    });
+  </script>
+</body>
+</html>
