@@ -213,6 +213,10 @@ def change_password(
 
     return {"message": "Password updated successfully"}
 
+@app.get("/dashboard/profile", response_class=HTMLResponse, tags=["web"])
+def profile_page(request: Request):
+    return templates.TemplateResponse("profile.html", {"request": request})
+
 
 # ------------------------------------------------------------------------------
 # Health Endpoint
