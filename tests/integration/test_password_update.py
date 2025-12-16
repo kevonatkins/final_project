@@ -12,9 +12,10 @@ def test_password_change_flow(fastapi_server, fake_user_data):
 
     # Login
     r = requests.post(f"{base}/auth/login", json={
-        "username": fake_user_data["username"],
-        "password": fake_user_data["password"]
+    "username_or_email": fake_user_data["username"],
+    "password": new_pass
     })
+
     assert r.status_code == 200, r.text
     token = r.json()["access_token"]
 
