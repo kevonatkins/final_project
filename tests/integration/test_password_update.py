@@ -13,7 +13,7 @@ def test_password_change_flow(fastapi_server, fake_user_data):
     # Login
     r = requests.post(f"{base}/auth/login", json={
     "username_or_email": fake_user_data["username"],
-    "password": new_pass
+    "password": fake_user_data["password"]
     })
 
     assert r.status_code == 200, r.text
@@ -32,7 +32,7 @@ def test_password_change_flow(fastapi_server, fake_user_data):
 
     # Login with new password
     r = requests.post(f"{base}/auth/login", json={
-        "username": fake_user_data["username"],
-        "password": new_pass
+    "username_or_email": fake_user_data["username"],
+    "password": new_pass
     })
     assert r.status_code == 200, r.text
