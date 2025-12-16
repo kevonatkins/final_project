@@ -27,30 +27,10 @@ from app.models.calculation import Calculation
 settings = get_settings()
 
 def utcnow():
-    """
-    Helper function to get current UTC datetime with timezone information.
-    
-    Using timezone-aware datetimes prevents issues with timezone
-    differences and daylight saving time changes.
-    
-    Returns:
-        datetime: Current UTC time with timezone info
-    """
     return datetime.now(timezone.utc)
 
 class User(Base):
-    """
-    User model with authentication and token management capabilities.
-    
-    This model represents a user in the system and provides methods for:
-    - User registration and validation
-    - Password hashing and verification
-    - JWT token generation
-    - Authentication
-    
-    It follows the Active Record pattern, where the model encapsulates
-    both data and behavior related to users.
-    """
+
     
     __tablename__ = "users"
     
@@ -114,15 +94,6 @@ class User(Base):
         return f"<User(name={self.first_name} {self.last_name}, email={self.email})>"
 
     def update(self, **kwargs):
-        """
-        Update user attributes and ensure updated_at is refreshed.
-        
-        Args:
-            **kwargs: Attributes to update
-            
-        Returns:
-            User: The updated user instance
-        """
         for key, value in kwargs.items():
             setattr(self, key, value)
         self.updated_at = utcnow()
@@ -134,47 +105,24 @@ class User(Base):
         return self.password
 
     def verify_password(self, plain_password: str) -> bool:
-        """
-        Verify a plain-text password against this user's stored hashed password.
-        
-        Args:
-            plain_password: The plain-text password to verify
-            
-        Returns:
-            bool: True if password matches, False otherwise
-        """
         from app.auth.jwt import verify_password
         return verify_password(plain_password, self.password)
+    
+    def set_password(self, new_password: str) -> None:
+        """
+        Hash and store a new password.
+        """
+        self.password = self.hash_password(new_password)  # IMPORTANT: write to `password`
+        self.updated_at = utcnow()
+
 
     @classmethod
     def hash_password(cls, password: str) -> str:
-        """
-        Hash a plain-text password using the application's password hashing utility.
-        
-        Args:
-            password: The plain-text password to hash
-            
-        Returns:
-            str: The hashed password
-        """
         from app.auth.jwt import get_password_hash
         return get_password_hash(password)
 
     @classmethod
     def register(cls, db, user_data: dict):
-        """
-        Register a new user.
-
-        Args:
-            db: SQLAlchemy database session
-            user_data: Dictionary containing user registration data
-            
-        Returns:
-            User: The newly created user instance
-            
-        Raises:
-            ValueError: If password is invalid or username/email already exists
-        """
         password = user_data.get("password")
         if not password or len(password) < 6:
             raise ValueError("Password must be at least 6 characters long")
@@ -202,17 +150,6 @@ class User(Base):
 
     @classmethod
     def authenticate(cls, db, username_or_email: str, password: str):
-        """
-        Authenticate a user by username/email and password.
-        
-        Args:
-            db: SQLAlchemy database session
-            username_or_email: Username or email to authenticate
-            password: Password to verify
-            
-        Returns:
-            dict: Authentication result with tokens and user data, or None if authentication fails
-        """
         user = db.query(cls).filter(
             or_(cls.username == username_or_email, cls.email == username_or_email)
         ).first()
@@ -239,45 +176,19 @@ class User(Base):
 
     @classmethod
     def create_access_token(cls, data: dict) -> str:
-        """
-        Create a JWT access token.
-        
-        Args:
-            data: Token payload data
-            
-        Returns:
-            str: JWT access token
-        """
+
         from app.auth.jwt import create_token
         from app.schemas.token import TokenType
         return create_token(data["sub"], TokenType.ACCESS)
 
     @classmethod
     def create_refresh_token(cls, data: dict) -> str:
-        """
-        Create a JWT refresh token.
-        
-        Args:
-            data: Token payload data
-            
-        Returns:
-            str: JWT refresh token
-        """
         from app.auth.jwt import create_token
         from app.schemas.token import TokenType
         return create_token(data["sub"], TokenType.REFRESH)
 
     @classmethod
     def verify_token(cls, token: str):
-        """
-        Verify a JWT token and return the user identifier.
-        
-        Args:
-            token: JWT token to verify
-            
-        Returns:
-            UUID: User ID if token is valid, None otherwise
-        """
         from app.core.config import settings
         from jose import jwt, JWTError
         try:

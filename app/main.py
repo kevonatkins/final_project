@@ -210,7 +210,7 @@ def change_password(
 
     current_user.set_password(password_data.new_password)
     db.commit()
-
+    db.refresh(current_user)
     return {"message": "Password updated successfully"}
 
 @app.get("/dashboard/profile", response_class=HTMLResponse, tags=["web"])

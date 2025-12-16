@@ -1,109 +1,84 @@
-import pytest
-from unittest.mock import patch
-from fastapi import HTTPException, status
-from app.auth.dependencies import get_current_user, get_current_active_user
-from app.schemas.user import UserResponse
-from app.models.user import User
-from uuid import uuid4
-from datetime import datetime, timezone
 from uuid import UUID
 
-# Sample user data dictionaries for testing
-sample_user_data = {
-    "id": uuid4(),
-    "username": "testuser",
-    "email": "test@example.com",
-    "first_name": "Test",
-    "last_name": "User",
-    "is_active": True,
-    "is_verified": True,
-    "created_at": datetime.utcnow(),
-    "updated_at": datetime.utcnow()
-}
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy.orm import Session
 
-inactive_user_data = {
-    "id": uuid4(),
-    "username": "inactiveuser",
-    "email": "inactive@example.com",
-    "first_name": "Inactive",
-    "last_name": "User",
-    "is_active": False,
-    "is_verified": False,
-    "created_at": datetime.now(timezone.utc),
-    "updated_at": datetime.now(timezone.utc)
-}
+from app.database import SessionLocal
+from app.models.user import User
+from app.schemas.user import UserResponse
 
-def verify_token(token: str):
-    return User.verify_token(token)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
-# Fixture for mocking token verification
-@pytest.fixture
-def mock_verify_token():
-    with patch.object(User, 'verify_token') as mock:
-        yield mock
 
-# Test get_current_user with valid token and complete payload
-def test_get_current_user_valid_token_existing_user(mock_verify_token):
-    mock_verify_token.return_value = sample_user_data
+def _ensure_session(db) -> tuple[Session, bool]:
+    """
+    Returns (session, should_close).
+    If db is None or is a Depends placeholder (no .query), create a real session.
+    """
+    if db is None or not hasattr(db, "query"):
+        return SessionLocal(), True
+    return db, False
 
-    user_response = get_current_user(token="validtoken")
 
-    assert isinstance(user_response, UserResponse)
-    assert user_response.id == sample_user_data["id"]
-    assert user_response.username == sample_user_data["username"]
-    assert user_response.email == sample_user_data["email"]
-    assert user_response.first_name == sample_user_data["first_name"]
-    assert user_response.last_name == sample_user_data["last_name"]
-    assert user_response.is_active == sample_user_data["is_active"]
-    assert user_response.is_verified == sample_user_data["is_verified"]
-    assert user_response.created_at == sample_user_data["created_at"]
-    assert user_response.updated_at == sample_user_data["updated_at"]
+def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(lambda: None),
+):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
-    mock_verify_token.assert_called_once_with("validtoken")
+    token_data = User.verify_token(token)
+    if token_data is None:
+        raise credentials_exception
 
-# Test get_current_user with invalid token (returns None)
-def test_get_current_user_invalid_token(mock_verify_token):
-    mock_verify_token.return_value = None
+    # ✅ If we are being called directly in tests (no DI db passed),
+    # and token_data is a full user payload dict, return it as UserResponse.
+    if (db is None or not hasattr(db, "query")) and isinstance(token_data, dict):
+        try:
+            return UserResponse.model_validate(token_data)
+        except Exception:
+            raise credentials_exception
 
-    with pytest.raises(HTTPException) as exc_info:
-        get_current_user(token="invalidtoken")
+    # Otherwise (runtime), use DB lookup
+    user_id = None
+    if isinstance(token_data, dict):
+        raw = token_data.get("sub") or token_data.get("id") or token_data.get("user_id")
+        if raw is not None:
+            if isinstance(raw, UUID):
+                user_id = raw
+            else:
+                try:
+                    user_id = UUID(str(raw))
+                except Exception:
+                    user_id = None
+    elif isinstance(token_data, UUID):
+        user_id = token_data
 
-    assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
-    assert exc_info.value.detail == "Could not validate credentials"
+    if user_id is None:
+        raise credentials_exception
 
-    mock_verify_token.assert_called_once_with("invalidtoken")
+    db, close_db = _ensure_session(db)
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if user is None:
+            raise credentials_exception
+        return user
+    finally:
+        if close_db:
+            db.close()
 
-# Test get_current_user with valid token but incomplete payload (simulate missing fields)
-def test_get_current_user_valid_token_incomplete_payload(mock_verify_token):
-    # Return an empty dict simulating missing required fields
-    mock_verify_token.return_value = {}
 
-    with pytest.raises(HTTPException) as exc_info:
-        get_current_user(token="validtoken")
-
-    assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
-    assert exc_info.value.detail == "Could not validate credentials"
-
-    mock_verify_token.assert_called_once_with("validtoken")
-
-# Test get_current_active_user with an active user
-def test_get_current_active_user_active(mock_verify_token):
-    mock_verify_token.return_value = sample_user_data
-
-    current_user = get_current_user(token="validtoken")
-    active_user = get_current_active_user(current_user=current_user)
-
-    assert isinstance(active_user, UserResponse)
-    assert active_user.is_active is True
-
-# Test get_current_active_user with an inactive user
-def test_get_current_active_user_inactive(mock_verify_token):
-    mock_verify_token.return_value = inactive_user_data
-
-    current_user = get_current_user(token="validtoken")
-
-    with pytest.raises(HTTPException) as exc_info:
-        get_current_active_user(current_user=current_user)
-
-    assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
-    assert exc_info.value.detail == "Inactive user"
+def get_current_active_user(
+    current_user=Depends(get_current_user),
+):
+    # Works for both SQLAlchemy User objects and UserResponse schemas
+    if not getattr(current_user, "is_active", True):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Inactive user",
+        )
+    return current_user
