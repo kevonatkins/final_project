@@ -161,6 +161,44 @@ def edit_calculation_page(request: Request, calc_id: str):
     """
     return templates.TemplateResponse("edit_calculation.html", {"request": request, "calc_id": calc_id})
 
+@app.get("/users/me", response_model=UserProfileResponse, tags=["users"])
+def get_my_profile(
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get current user's profile
+    """
+    return current_user
+
+
+@app.put("/users/me", response_model=UserProfileResponse, tags=["users"])
+def update_my_profile(
+    profile_update: UserProfileUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Update current user's profile information
+    """
+    update_data = profile_update.model_dump(exclude_unset=True)
+
+    # Prevent username/email collision
+    if "username" in update_data or "email" in update_data:
+        existing = db.query(User).filter(
+            (User.username == update_data.get("username")) |
+            (User.email == update_data.get("email"))
+        ).first()
+        if existing and existing.id != current_user.id:
+            raise HTTPException(
+                status_code=400,
+                detail="Username or email already in use"
+            )
+
+    current_user.update(**update_data)
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+  
 
 # ------------------------------------------------------------------------------
 # Health Endpoint

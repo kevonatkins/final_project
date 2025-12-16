@@ -99,8 +99,8 @@ jobs:
         with:
           push: true
           tags: |
-            kevonatkins/assignment13.0:latest
-            kevonatkins/assignment13.0:${{ github.sha }}
+            kevonatkins/final_project:latest
+            kevonatkins/final_project:${{ github.sha }}
           platforms: linux/amd64,linux/arm64
-          cache-from: type=registry,ref=kevonatkins/assignment13.0:cache
+          cache-from: type=registry,ref=kevonatkins/final_project:cache
           cache-to: type=inline,mode=max
