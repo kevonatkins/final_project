@@ -196,3 +196,18 @@ class PasswordUpdate(BaseModel):
             }
         }
     )
+class UserProfileResponse(UserResponse):
+    """
+    Returned when fetching the current user's profile
+    """
+    pass
+
+
+class UserProfileUpdate(BaseModel):
+    """
+    Payload for updating user profile info
+    """
+    username: str | None = None
+    email: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
