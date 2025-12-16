@@ -1,264 +1,103 @@
-# 📦 Project Setup
+# Final Project – FastAPI Web Application
+
+## Overview
+This project is a full-stack FastAPI web application that demonstrates secure authentication, database integration, and automated testing.  
+The final project feature adds a **User Profile Password Change** workflow, allowing authenticated users to securely update their password using hashed credentials.
+
+The application is built using:
+- FastAPI for backend REST APIs
+- SQLAlchemy for database management
+- JWT-based authentication and authorization
+- Playwright for end-to-end (E2E) testing
+- Docker and GitHub Actions for CI/CD automation
 
 ---
 
-# 🧩 1. Install Homebrew (Mac Only)
+## Final Project Feature: User Profile & Password Change
+This project implements a secure **password change feature** that allows authenticated users to update their password through a profile page.
 
-> Skip this step if you're on Windows.
+### Feature Workflow
+- User registers and logs in
+- User navigates to the profile page
+- User submits current password and new password
+- Password is securely hashed and updated in the database
+- User can log in again using the new password
 
-Homebrew is a package manager for macOS.  
-You’ll use it to easily install Git, Python, Docker, etc.
-
-**Install Homebrew:**
-
-```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-```
-
-**Verify Homebrew:**
-
-```bash
-brew --version
-```
-
-If you see a version number, you're good to go.
+### Security Implementation
+- Passwords are hashed before storage
+- Current password verification is required before updating
+- JWT tokens protect all sensitive routes
+- Unauthorized access is properly rejected
 
 ---
 
-# 🧩 2. Install and Configure Git
+## Running the Application
 
-## Install Git
-
-- **MacOS (using Homebrew)**
-
+### Run Locally (Without Docker)
 ```bash
-brew install git
+uvicorn app.main:app --reload
+
 ```
 
-- **Windows**
-
-Download and install [Git for Windows](https://git-scm.com/download/win).  
-Accept the default options during installation.
-
-**Verify Git:**
+Application will be available at:
 
 ```bash
-git --version
+http://127.0.0.1:8000
 ```
+## Run Using Docker
+```bash
+docker compose up --build
+``` 
+## Running Tests
+All tests can be executed locally using:
+```
+pytest
+```
+## Testing Strategy
+- Unit Tests validate password update logic and schemas
 
----
+- Integration Tests verify database updates and API routes
 
-## Configure Git Globals
+- End-to-End Tests (Playwright) confirm the full workflow from login to password change and re-login
 
-Set your name and email so Git tracks your commits properly:
+All tests pass successfully as part of the CI pipeline.
 
 ```bash
-git config --global user.name "Your Name"
-git config --global user.email "your_email@example.com"
-```
+API Endpoints
+Method	Endpoint	Description
+POST	/auth/register	Register a new user
+POST	/auth/login	Authenticate user and receive JWT
+PUT	/users/me/password	Change authenticated user password
+GET	/health	Health check endpoint
+``` 
+## CI/CD Pipeline
+This project uses GitHub Actions to automate:
 
-Confirm the settings:
+- Running all unit, integration, and E2E tests
 
-```bash
-git config --list
-```
+- Building the Docker image after successful tests
 
----
+- Ensuring code quality before deployment
 
-## Generate SSH Keys and Connect to GitHub
+## Docker Hub Repository
+Docker image for this project is available at:
 
-> Only do this once per machine.
 
-1. Generate a new SSH key:
+https://hub.docker.com/r/kevonatkins/final_project
+## GitHub Repository
+Source code and tests are available at:
 
-```bash
-ssh-keygen -t ed25519 -C "your_email@example.com"
-```
 
-(Press Enter at all prompts.)
+https://github.com/kevonatkins/final_project
+## Learning Outcomes Addressed
+- Create Python applications with automated testing
 
-2. Start the SSH agent:
+- Build secure REST APIs using FastAPI
 
-```bash
-eval "$(ssh-agent -s)"
-```
+- Implement JWT-based authentication and password hashing
 
-3. Add the SSH private key to the agent:
+- Integrate SQL databases using SQLAlchemy
 
-```bash
-ssh-add ~/.ssh/id_ed25519
-```
+- Containerize applications using Docker
 
-4. Copy your SSH public key:
-
-- **Mac/Linux:**
-
-```bash
-cat ~/.ssh/id_ed25519.pub | pbcopy
-```
-
-- **Windows (Git Bash):**
-
-```bash
-cat ~/.ssh/id_ed25519.pub | clip
-```
-
-5. Add the key to your GitHub account:
-   - Go to [GitHub SSH Settings](https://github.com/settings/keys)
-   - Click **New SSH Key**, paste the key, save.
-
-6. Test the connection:
-
-```bash
-ssh -T git@github.com
-```
-
-You should see a success message.
-
----
-
-# 🧩 3. Clone the Repository
-
-Now you can safely clone the course project:
-
-```bash
-git clone <repository-url>
-cd <repository-directory>
-```
-
----
-
-# 🛠️ 4. Install Python 3.10+
-
-## Install Python
-
-- **MacOS (Homebrew)**
-
-```bash
-brew install python
-```
-
-- **Windows**
-
-Download and install [Python for Windows](https://www.python.org/downloads/).  
-✅ Make sure you **check the box** `Add Python to PATH` during setup.
-
-**Verify Python:**
-
-```bash
-python3 --version
-```
-or
-```bash
-python --version
-```
-
----
-
-## Create and Activate a Virtual Environment
-
-(Optional but recommended)
-
-```bash
-python3 -m venv venv
-source venv/bin/activate   # Mac/Linux
-venv\Scripts\activate.bat  # Windows
-```
-
-### Install Required Packages
-
-```bash
-pip install -r requirements.txt
-```
-
----
-
-# 🐳 5. (Optional) Docker Setup
-
-> Skip if Docker isn't used in this module.
-
-## Install Docker
-
-- [Install Docker Desktop for Mac](https://www.docker.com/products/docker-desktop/)
-- [Install Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/)
-
-## Build Docker Image
-
-```bash
-docker build -t <image-name> .
-```
-
-## Run Docker Container
-
-```bash
-docker run -it --rm <image-name>
-```
-
----
-
-# 🚀 6. Running the Project
-
-- **Without Docker**:
-
-```bash
-python main.py
-```
-
-(or update this if the main script is different.)
-
-- **With Docker**:
-
-```bash
-docker run -it --rm <image-name>
-```
-
----
-
-# 📝 7. Submission Instructions
-
-After finishing your work:
-
-```bash
-git add .
-git commit -m "Complete Module X"
-git push origin main
-```
-
-Then submit the GitHub repository link as instructed.
-
----
-
-# 🔥 Useful Commands Cheat Sheet
-
-| Action                         | Command                                          |
-| ------------------------------- | ------------------------------------------------ |
-| Install Homebrew (Mac)          | `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"` |
-| Install Git                     | `brew install git` or Git for Windows installer |
-| Configure Git Global Username  | `git config --global user.name "Your Name"`      |
-| Configure Git Global Email     | `git config --global user.email "you@example.com"` |
-| Clone Repository                | `git clone <repo-url>`                          |
-| Create Virtual Environment     | `python3 -m venv venv`                           |
-| Activate Virtual Environment   | `source venv/bin/activate` / `venv\Scripts\activate.bat` |
-| Install Python Packages        | `pip install -r requirements.txt`               |
-| Build Docker Image              | `docker build -t <image-name> .`                |
-| Run Docker Container            | `docker run -it --rm <image-name>`               |
-| Push Code to GitHub             | `git add . && git commit -m "message" && git push` |
-
----
-
-# 📋 Notes
-
-- Install **Homebrew** first on Mac.
-- Install and configure **Git** and **SSH** before cloning.
-- Use **Python 3.10+** and **virtual environments** for Python projects.
-- **Docker** is optional depending on the project.
-
----
-
-# 📎 Quick Links
-
-- [Homebrew](https://brew.sh/)
-- [Git Downloads](https://git-scm.com/downloads)
-- [Python Downloads](https://www.python.org/downloads/)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- [GitHub SSH Setup Guide](https://docs.github.com/en/authentication/connecting-to-github-with-ssh)
+- Automate testing and deployment using GitHub Actions
