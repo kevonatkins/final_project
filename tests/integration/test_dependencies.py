@@ -6,6 +6,7 @@ from app.schemas.user import UserResponse
 from app.models.user import User
 from uuid import uuid4
 from datetime import datetime, timezone
+from uuid import UUID
 
 # Sample user data dictionaries for testing
 sample_user_data = {
@@ -31,6 +32,9 @@ inactive_user_data = {
     "created_at": datetime.now(timezone.utc),
     "updated_at": datetime.now(timezone.utc)
 }
+
+def verify_token(token: str):
+    return User.verify_token(token)
 
 # Fixture for mocking token verification
 @pytest.fixture

@@ -213,6 +213,13 @@ def fastapi_server():
         process.kill()
         logger.warning("Test server forcefully stopped.")
 
+
+
+@pytest.fixture
+def live_server(fastapi_server):
+    return fastapi_server
+
+
 # ======================================================================================
 # Playwright Fixtures for UI Testing
 # ======================================================================================

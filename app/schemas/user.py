@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator, AliasChoices
 
 
 class UserBase(BaseModel):
@@ -61,21 +61,26 @@ class UserCreate(UserBase):
         return self
 
 
-class UserLogin(BaseModel):
-    """Schema for login request"""
+from pydantic import BaseModel, Field, model_validator
 
-    username_or_email: str = Field(
-        min_length=3,
-        max_length=50,
-        description="Username or email",
-        examples=["johndoe"],
-    )
-    password: str = Field(
-        min_length=8,
-        max_length=128,
-        description="Password",
-        examples=["SecurePass123!"],
-    )
+class UserLogin(BaseModel):
+    username_or_email: str = Field(..., alias="username_or_email")
+    password: str
+
+    @model_validator(mode="before")
+    @classmethod
+    def accept_username_key(cls, data):
+        # data can be dict or already a model
+        if isinstance(data, dict):
+            if "username_or_email" not in data and "username" in data:
+                data["username_or_email"] = data["username"]
+            if "username_or_email" not in data and "email" in data:
+                data["username_or_email"] = data["email"]
+        return data
+
+    class Config:
+        populate_by_name = True
+
 
 
 class UserUpdate(BaseModel):
@@ -138,18 +143,23 @@ class PasswordUpdate(BaseModel):
         if self.current_password == self.new_password:
             raise ValueError("New password must be different from current password")
         return self
+    
+    
+    
 
 
 class UserOut(BaseModel):
-    """Schema for returning user info (safe fields only)"""
-
     id: UUID
+    username: str
+    email: EmailStr
     first_name: str
     last_name: str
-    email: EmailStr
-    username: str
-    created_at: Optional[datetime] = None
+    is_active: bool
+    is_verified: bool
+    created_at: datetime
+    updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 
+# keep compatibility with imports/tests
 UserResponse = UserOut
