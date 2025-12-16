@@ -37,7 +37,14 @@ from app.models.calculation import Calculation  # Database model for calculation
 from app.models.user import User  # Database model for users
 from app.schemas.calculation import CalculationBase, CalculationResponse, CalculationUpdate  # API request/response schemas
 from app.schemas.token import TokenResponse  # API token schema
-from app.schemas.user import UserCreate, UserResponse, UserLogin  # User schemas
+from app.schemas.user import (
+    UserCreate,
+    UserLogin,
+    UserOut,
+    UserUpdate,
+    PasswordUpdate,
+)
+   # User schemas
 from app.database import Base, get_db, engine  # Database connection
 
 
@@ -161,44 +168,51 @@ def edit_calculation_page(request: Request, calc_id: str):
     """
     return templates.TemplateResponse("edit_calculation.html", {"request": request, "calc_id": calc_id})
 
-@app.get("/users/me", response_model=UserProfileResponse, tags=["users"])
+@app.get("/users/me", response_model=UserOut, tags=["users"])
 def get_my_profile(
     current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Get current user's profile
-    """
     return current_user
 
 
-@app.put("/users/me", response_model=UserProfileResponse, tags=["users"])
+
+@app.put("/users/me", response_model=UserOut, tags=["users"])
 def update_my_profile(
-    profile_update: UserProfileUpdate,
+    profile_update: UserUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
-    """
-    Update current user's profile information
-    """
     update_data = profile_update.model_dump(exclude_unset=True)
 
-    # Prevent username/email collision
     if "username" in update_data or "email" in update_data:
         existing = db.query(User).filter(
             (User.username == update_data.get("username")) |
             (User.email == update_data.get("email"))
         ).first()
-        if existing and existing.id != current_user.id:
-            raise HTTPException(
-                status_code=400,
-                detail="Username or email already in use"
-            )
+        if existing is not None and existing.id != current_user.id:
+            raise HTTPException(status_code=400, detail="Username or email already in use")
 
-    current_user.update(**update_data)
+    for key, value in update_data.items():
+        setattr(current_user, key, value)
+
     db.commit()
     db.refresh(current_user)
     return current_user
-  
+
+@app.put("/users/me/password", tags=["users"])
+def change_password(
+    password_data: PasswordUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    if not current_user.verify_password(password_data.current_password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+
+    current_user.set_password(password_data.new_password)
+    db.commit()
+
+    return {"message": "Password updated successfully"}
+
 
 # ------------------------------------------------------------------------------
 # Health Endpoint
@@ -212,12 +226,8 @@ def read_health():
 # ------------------------------------------------------------------------------
 # User Registration Endpoint
 # ------------------------------------------------------------------------------
-@app.post(
-    "/auth/register", 
-    response_model=UserResponse, 
-    status_code=status.HTTP_201_CREATED,
-    tags=["auth"]
-)
+@app.post("/auth/register", response_model=UserOut, status_code=status.HTTP_201_CREATED, tags=["auth"])
+
 def register(user_create: UserCreate, db: Session = Depends(get_db)):
     """
     Create a new user account.
@@ -242,7 +252,7 @@ def login_json(user_login: UserLogin, db: Session = Depends(get_db)):
     Login with JSON payload (username & password).
     Returns an access token, refresh token, and user info.
     """
-    auth_result = User.authenticate(db, user_login.username, user_login.password)
+    auth_result = User.authenticate(db, user_login.username_or_email, user_login.password)
     if auth_result is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
