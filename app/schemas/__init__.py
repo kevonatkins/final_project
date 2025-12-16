@@ -2,7 +2,7 @@
 from .user import (
     UserBase,
     UserCreate,
-    UserResponse,
+    UserOut,
     UserLogin,
     UserUpdate,
     PasswordUpdate
@@ -20,7 +20,7 @@ from .calculation import (
 __all__ = [
     'UserBase',
     'UserCreate',
-    'UserResponse',
+    'UserOut',
     'UserLogin',
     'UserUpdate',
     'PasswordUpdate',
